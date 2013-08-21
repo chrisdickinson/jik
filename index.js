@@ -6,35 +6,87 @@ var language = require('cssauron-falafel')
   , path = require('path')
   , fs = require('fs')
 
-var selector = optimist.argv._[0]
-  , filename = optimist.argv._[1]
+var selector = optimist.argv._.shift()
 
-if(!selector || !filename) {
-  return
+var next_is_action = optimist.argv._.length > 1 &&
+    optimist.argv._[0].indexOf('{') > -1
+
+var action = next_is_action ?
+    optimist.argv._.shift() : '{print($POS, $NODE)}'
+  , filenames = optimist.argv._
+  , pipeline
+
+if(!selector || !filenames.length) {
+  process.exit(1)
 }
 
-fs.lstat(filename, function(err, stat) {
-  if(err) {
-    throw err
-  }
+pipeline = isdirify()
 
-  if(stat.isDirectory()) {
-    ls(filename)
-      .pipe(filter())
-      .pipe(nom())
+pipeline.pipe(filter()).pipe(nom())
 
-  } else {
-    process_file(filename, function() {
+while(filenames.length) {
+  pipeline.write(filenames.shift())
+}
 
+pipeline.end()
+
+function isdirify() {
+  var stream = through(write, end)
+    , pending = 0
+    , ended
+
+  return stream
+
+  function write(filename) {
+    ++pending
+    fs.lstat(filename, function(err, stat) {
+      if(err) {
+        return stream.emit('error', err)
+      }
+
+      if(stat.isDirectory()) {
+        ls(filename)
+          .on('data', ondata)
+          .on('error', onerror)
+          .on('end', onend)
+      } else {
+        stream.queue({path: filename, stat: stat})
+        check(-1)
+      }
     })
   }
-})
+
+  function ondata(info) {
+    stream.queue(info)
+  }
+
+  function onerror(err) {
+    stream.emit('error', err)
+  }
+
+  function onend() {
+    check(-1)
+  }
+
+  function check(val) {
+    pending += val || 0
+
+    if(!pending && ended) {
+      stream.queue(null)
+    }
+  }
+
+  function end() {
+    ended = true
+    check()
+  }
+}
 
 function filter() {
   return through(function(info) {
     if(path.extname(info.path) === '.js' && info.stat.isFile()) {
       this.queue(info)
-    }    
+    }
   })
 }
 
@@ -115,7 +167,11 @@ function process_file(filename, ready) {
 
     try {
       falafel(data, function(node) {
-        if(node.parent && node.parent.id && node.parent.id.name === '__NOPE__') {
+        var is_nope = node.parent &&
+                      node.parent.id &&
+                      node.parent.id.name === '__NOPE__'
+
+        if(is_nope) {
           node.parent = null
         }
 
@@ -123,26 +179,61 @@ function process_file(filename, ready) {
           return
         }
 
-
         if(lang(node)) {
           output.push(node)
         }
-      }) 
+      })
     } catch(err) {
       return ready()
     }
 
     var node
+      , act
 
-    if(output.length) {
-      console.log(filename.replace(process.cwd()))
-    }
+    act = parse_action(act)
 
     while(output.length) {
       node = output.shift()
-      console.log('%s: "%s"', idx_to_line_col(node.range[0]).line, node.source())
+      act(node)
     }
 
     ready()
+
+    function parse_action(str) {
+      return Function(
+          'print'
+        , 'parents'
+        , 'pos'
+        , '$FILE'
+        , 'action.called = 0; return action\nfunction action($NODE) {\n' +
+        '  var $LINE = pos($NODE.range[0]).line\n' +
+        '  var $FIRST = action.called++ === 0\n' +
+        '  var $POS = ($FIRST ? $FILE + "\\n" : "") + $LINE + ": "\n' +
+        '  ;' + action + ';' +
+        '}'
+      )(print, parents, idx_to_line_col, filename.replace(process.cwd(), './'))
+
+      function print() {
+        process.stdout.write(
+            [].slice.call(arguments).map(coerce).join('') + '\n'
+        )
+      }
+
+      function coerce(item) {
+        return (item.source ? item.source() : item) + ''
+      }
+
+      function parents(node, sel) {
+        var sel = language(sel)
+          , cur = node.parent
+
+        while(cur && !sel(cur)) {
+          cur = cur.parent
+        }
+
+        return cur || {}
+      }
+    }
+
   })
 }
