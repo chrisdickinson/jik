@@ -1,0 +1,32 @@
+{
+  "name": "jssel",
+  "version": "0.0.0",
+  "description": "use cssauron selectors to print out js",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo 'yay'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/chrisdickinson/jssel.git"
+  },
+  "keywords": [
+    "cli",
+    "js",
+    "query",
+    "css"
+  ],
+  "bin": {
+    "jssel": "./bin/jssel"
+  },
+  "author": "Chris Dickinson <chris@neversaw.us>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/chrisdickinson/jssel/issues"
+  },
+  "dependencies": {
+    "falafel": "~0.3.1",
+    "cssauron-falafel": "0.0.3",
+    "optimist": "~0.6.0"
+  }
+}
