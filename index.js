@@ -13,22 +13,52 @@ var next_is_action = optimist.argv._.length > 1 &&
 
 var action = next_is_action ?
     optimist.argv._.shift() : '{print($POS, $NODE)}'
+  , help_text = path.join(__dirname, 'help.txt')
   , filenames = optimist.argv._
+  , exitcode = 0
+  , bad_command
   , pipeline
 
-if(!selector || !filenames.length) {
-  process.exit(1)
-}
+bad_command = !optimist.argv.help && (!selector || !filenames.length)
 
 pipeline = isdirify()
 
-pipeline.pipe(filter()).pipe(nom())
+if(bad_command) {
+  process.stdout.write(
+      fs.readFileSync(help_text, 'utf8')
+        .split('\n').slice(0, 1)
+        .join('\n') + '\n'
+  )
+  process.exit(1)
+} else if(optimist.argv.help) {
+  var spawn = require('child_process').spawn
+    , tty = require('tty')
+    , pager
 
-while(filenames.length) {
-  pipeline.write(filenames.shift())
+  function raw(mode) {
+    process.stdin.setRawMode ?
+      process.stdin.setRawMode(mode) :
+      tty.setRawMode(mode)
+  }
+
+  raw(true)
+  pager = spawn(process.env.PAGER || 'less', ['-R', help_text], {
+      customFds: [0, 1, 2]
+  })
+
+  pager.on('exit', function(code, sig) {
+    raw(false)
+    process.exit()
+  })
+} else {
+  pipeline.pipe(filter()).pipe(nom())
+
+  while(filenames.length) {
+    pipeline.write(filenames.shift())
+  }
+
+  pipeline.end()
 }
-
-pipeline.end()
 
 function isdirify() {
   var stream = through(write, end)
@@ -202,14 +232,17 @@ function process_file(filename, ready) {
     function parse_action(str) {
       return Function(
           'print'
-        , 'parents'
-        , 'pos'
+        , '_parents'
+        , '_pos'
         , '$FILE'
         , 'action.called = 0; return action\nfunction action($NODE) {\n' +
-        '  var $LINE = pos($NODE.range[0]).line\n' +
-        '  var $FIRST = action.called++ === 0\n' +
-        '  var $POS = ($FIRST ? $FILE + "\\n" : "") + $LINE + ": "\n' +
-        '  ;' + action + ';' +
+        '  var $LINE = _pos($NODE.range[0]).line\n' +
+        '  var $COUNT = action.called++\n' +
+        '  var $POS = ($COUNT === 1 ? $FILE + "\\n" : "") + $LINE + ": "\n' +
+        '  parents = function(n, s) { return arguments.length === 1 ?\n' +
+        '     _parents($NODE, n) : _parents(n, s)\n' +
+        '  }\n' +
+        '  try {;' + action + '; } catch(err) { }' +
         '}'
       )(print, parents, idx_to_line_col, filename.replace(process.cwd(), './'))
 

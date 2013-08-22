@@ -1,0 +1,202 @@
+usage: jik [--help] <ast-selector> [<action>] <filename> [<filename>...]
+
+  search a javascript file or directory using the provided [4m<ast-selector>[0m
+  and execution [4m<action>[0m on each matching AST node.
+
+  if [4m<filename>[0m is a directory, that directory will be traversed and any
+  file ending with ".js" will be searched. 
+
+  [4maction[0m must be valid javascript if present, surrounded by "{}". the following
+  objects and functions are available to you:
+
+  console                   - the console object.
+  $NODE                     - the current node.
+  $LINE                     - the line of the current node.
+  $FILE                     - the current filename.
+  $COUNT                    - the number of times the action
+                              has been called in the current file.
+  $POS                      - a macro for (!$COUNT ? $FILE + '\n' : '') + $LINE + ':'
+  parents([node,] selector) - returns the parent matching selector or an empty object.
+  pos(node)                 - returns an object with {line, col} attributes.
+
+  if not specified, the default [4maction[0m is '{print($POS, $NODE)}'.
+
+  [4mast-selectors[0m
+
+  The AST selector language follows the same general rules as
+  CSS selectors. The following "tag" style selectors are available:
+
+  block                             if(x) [31m{
+                                    [31m  // also works with
+                                    [31m  // for, do, while, etc
+                                    [31m}[0m
+
+  expr                              var x = 2, y = 3
+                                    [31my = x + 3 
+                                    if(x + 1) {
+                                        ...
+
+  ternary                           var y = [31mx ? 1 : 2[0m;
+
+  if                                [31mif(x) {
+                                    [31m} else {
+                                    [31m}
+  if:first-child                    if([31mx[0m) {
+                                    } else {
+                                    }
+  if > *:first-child + *            if(x) [31m{
+                                    [31m} [0melse {
+                                    }
+  if > *:first-child + * + *        if(x) {
+                                    } else [31m{
+                                    [31m}
+  if > *:first-child + * + if       if(x) {
+                                    } else [31mif(...) {
+                                    [31m}
+
+  break                             [31mbreak[0m;
+  break[label]                      [31mbreak example[0m; 
+
+  continue                          [31mcontinue[0m;
+  continue[label]                   [31mcontinue example[0m; 
+
+  with                              [31mwith(ex) {[0m; 
+                                    [31m}[0m; 
+
+  switch                            [31mswitch(ex) {[0m; 
+                                    [31m}[0m; 
+
+  return                            [31mreturn[0m;
+  return[argument]                  [31mreturn anything[0m;
+  return > *                        return [31manything[0m;
+
+  while                             [31mwhile(x) { }[0m
+  do-while                          [31mdo { } while(x)[0m
+  for                               [31mfor(var x; y; z) { }[0m
+  for-in                            [31mfor(var k in o) { }[0m
+  for-in[left] > *:first-child      for([31mvar k[0m in o) { }[0m
+  for-in[right] > *:first-child + * for(var k in [31mo[0m) { }[0m
+  for-in > *:last-child             for(var k in o) [31m{ }[0m
+
+  variable-decl                     [31mvar x = 3, y = 2, z[0m;
+  variable-decl[kind=const]         [31mconst x = 3, y = 2, z[0m;
+  variable-decl[kind=var]           [31mvar x = 3, y = 2, z[0m;
+  variable-decl[kind=let]           [31mlet x = 3, y = 2, z[0m;
+
+  variable                          var [31mx = 3[0m, [31my = 2[0m, [31mz[0m;
+  variable[init]                    var [31mx = 3[0m, [31my = 2[0m, z;
+  variable > id:first-child         var [31mx[0m = 3, [31my[0m = 2, [31mz[0m;
+
+  binary                            [31mx + 2[0m, [31mx || y[0m
+  binary[operator=\+]               [31mx + 2[0m, x || y
+
+  assign                            [31mx = y[0m
+  assign[operator=\>\>\=]           [31mx = y[0m
+
+  array                             y = [31m[0, 1, 2][0m
+
+  object                            y = [31m{a: 0, b: 1, c: 2}[0m
+  object > * > :any(literal, id):first-child
+                                    y = {[31ma[0m: 0, [31mb[0m: 1, [31m"c"[0m: 2}
+  object > * > :any(literal, id):first-child + *
+                                    y = {a: [31m0[0m, b: [31m1[0m, "c": [31m2[0m}
+
+  function                          [31mfunction() {}[0m
+  function[id]                      [31mfunction name() {}[0m
+
+  sequence                          var x = [31m0, 1, 2[0m // x == 2
+
+  update                            [31m++x[31m, [31my++[0m
+  update[prefix]                    [31m++x[0m, y++
+
+  unary                             [31mvoid x[0m, [31m~x[0m, [31m!x[0m, [31mdelete x[0m, [31mtypeof x
+  unary[operator=void]              [31mvoid x[0m, ~x, !x, delete x, typeof x
+
+  call                              x(y, z)
+  call > *:first-child              [31mx[0m(y, z)
+  call > *:first-child ~ *          x([31my[0m, [31mz[0m)
+
+  new                               new Callee(arg, arg, arg)
+  new[callee] > *:first-child       new [31mCallee[0m(arg, arg, arg)
+  new[callee] > *:first-child ~ *   new Callee([31marg[0m, [31marg[0m, [31marg[0m)
+
+  lookup                            [31mobj.x[0m, [31mobj["hello" + x][0m
+  lookup[computed]                  obj.x, [31mobj["hello" + x][0m
+  lookup > * + expr                 obj.x, obj[[31m"hello" + x[0m]
+  lookup > * + id                   obj.[31mx[0m, obj["hello" + x]
+  lookup > * + *                    obj.[31mx[0m, obj[[31m"hello" + x[0m]
+  lookup > *:first-child            [31mobj[0m.x, [31mobj[0m["hello" + x]
+
+  case                              switch(x) { [31mcase 3[0m: arf; [31mdefault[0m: barf; }
+  case[test]                        switch(x) { [31mcase 3[0m: arf; default: barf; }
+
+  throw                             [31mthrow
+
+  label                             [31mexample:[0m
+                                    var x = 3;
+
+  try                               [31mtry {
+                                    [31m} catch(err) {
+                                    [31m}
+  try[handlers]                     [31mtry {
+                                    [31m} catch(err) {
+                                    [31m}
+  try[finalizer]                    [31mtry {
+                                    [31m} finally {
+                                    [31m}
+  try > catch                       try {
+                                    } [31mcatch(err) {
+  catch                             ... } [31mcatch(err) {
+                                    [31m}
+  this                              [31mthis
+  id                                [31mx[0m, [31marf[0m, [31m$barf[0m, [31mx_y
+  literal                           [31m0[0m, [31mNaN[0m, [31m"hi"[0m, [31mtrue[0m, [31mfalse[0m, [31mnull[0m, [31m3.2[0m, [31m/asdf/
+
+  The following operators are available:
+
+  parent-sel > direct-child-sel         Selects only nodes who match
+                                        direct-child-sel and whose 
+                                        direct parents match parent-sel.
+                                        
+  parent-sel indirect-child-sel         Selects nodes who match
+                                        indirect-child-sel and who
+                                        descend from any node matching
+                                        parent-sel.
+
+  child-sel + sibling-sel               Selects nodes who match sibling-sel
+                                        and who are directly next to a node
+                                        that matches child-sel.
+
+  child-sel ~ sibling-sel               Selects nodes who match sibling-sel
+                                        and who possess a prior sibling matching
+                                        child-sel.
+
+  complex selector-one, selector-two    Selects nodes who match either the selector
+                                        to the left or the right of the comma.
+
+  [attr]                                attr is present on this node and is
+                                        truthy.
+
+  [attr=value]                          attr is present on this node and matches
+                                        value.
+
+  [attr$=value]                         attr is present on this node and ends with
+                                        value.
+                                      
+  [attr^=value]                         attr is present on this node and begins with
+                                        value.
+  
+  [attr*=value]                         attr is present on this node and contains value.
+
+  :first-child                          Node is the first child of its parent.
+
+  :last-child                           Node is the last child of its parent.
+
+  :empty                                Node has no children.
+
+  :root                                 Node is the root of the tree.
+
+  :contains(text)                       The source code of node contains text.
+
+  :any(selector, selector)              True if any selector matches node.
+
