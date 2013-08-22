@@ -234,17 +234,25 @@ function process_file(filename, ready) {
           'print'
         , '_parents'
         , '_pos'
+        , '_is'
         , '$FILE'
         , 'action.called = 0; return action\nfunction action($NODE, $LAST) {\n' +
         '  var $LINE = _pos($NODE.range[0]).line\n' +
         '  var $COUNT = action.called++\n' +
-        '  var $POS = ($COUNT === 1 ? $FILE + "\\n" : "") + $LINE + ": "\n' +
+        '  var $POS = ($COUNT === 0 ? $FILE + "\\n" : "") + $LINE + ": "\n' +
         '  parents = function(n, s) { return arguments.length === 1 ?\n' +
         '     _parents($NODE, n) : _parents(n, s)\n' +
         '  }\n' +
+        '  is = function(n, s) { return arguments.length === 1 ?\n' +
+        '     _is($NODE, n) : _is(n, s)\n' +
+        '  }\n' +
         '  try {;' + action + '; } catch(err) { }' +
         '}'
-      )(print, parents, idx_to_line_col, filename.replace(process.cwd(), './'))
+      )(print, parents, idx_to_line_col, is, filename.replace(process.cwd(), './'))
+
+      function is(node, sel) {
+        return language(sel)(node)
+      }
 
       function print() {
         process.stdout.write(
