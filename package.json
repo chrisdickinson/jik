@@ -1,14 +1,14 @@
 {
-  "name": "jssel",
+  "name": "jik",
   "version": "0.0.0",
-  "description": "use cssauron selectors to print out js",
+  "description": "use css selectors to grep your JS codebase",
   "main": "index.js",
   "scripts": {
     "test": "echo 'yay'"
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/chrisdickinson/jssel.git"
+    "url": "git://github.com/chrisdickinson/jik.git"
   },
   "keywords": [
     "cli",
@@ -17,12 +17,12 @@
     "css"
   ],
   "bin": {
-    "jssel": "./bin/jssel"
+    "jik": "./bin/jik"
   },
   "author": "Chris Dickinson <chris@neversaw.us>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/chrisdickinson/jssel/issues"
+    "url": "https://github.com/chrisdickinson/jik/issues"
   },
   "dependencies": {
     "falafel": "~0.3.1",
