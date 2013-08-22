@@ -13,6 +13,7 @@ usage: jik [--help] <ast-selector> [<action>] <filename> [<filename>...]
   $NODE                     - the current node.
   $LINE                     - the line of the current node.
   $FILE                     - the current filename.
+  $LAST                     - is the current node the last match in $FILE?
   $COUNT                    - the number of times the action
                               has been called in the current file.
   $POS                      - a macro for (!$COUNT ? $FILE + '\n' : '') + $LINE + ':'

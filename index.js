@@ -224,7 +224,7 @@ function process_file(filename, ready) {
 
     while(output.length) {
       node = output.shift()
-      act(node)
+      act(node, !output.length)
     }
 
     ready()
@@ -235,7 +235,7 @@ function process_file(filename, ready) {
         , '_parents'
         , '_pos'
         , '$FILE'
-        , 'action.called = 0; return action\nfunction action($NODE) {\n' +
+        , 'action.called = 0; return action\nfunction action($NODE, $LAST) {\n' +
         '  var $LINE = _pos($NODE.range[0]).line\n' +
         '  var $COUNT = action.called++\n' +
         '  var $POS = ($COUNT === 1 ? $FILE + "\\n" : "") + $LINE + ": "\n' +
