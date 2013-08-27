@@ -6,6 +6,8 @@ var language = require('cssauron-falafel')
   , path = require('path')
   , fs = require('fs')
 
+var resolve = require('resolve')
+
 var selector = optimist.argv._.shift()
 
 var next_is_action = optimist.argv._.length > 1 &&
@@ -147,10 +149,25 @@ function nom() {
     }
 
     current = true
-    process_file(pending.shift().path, function() {
+    process_file(pending.shift().path, follow, function() {
       current = false
       check()
     })
+  }
+
+  function follow(filename) {
+    try {
+      var stat = fs.lstatSync(filename)
+
+      pending.push({
+          path: filename
+        , stat: stat
+      })
+
+      check()
+    } catch(err) {
+
+    }
   }
 
   function end() {
@@ -164,7 +181,7 @@ function nom() {
   }
 }
 
-function process_file(filename, ready) {
+function process_file(filename, follow, ready) {
   fs.readFile(filename, 'utf8', function(err, data) {
     if(err) {
       throw err
@@ -224,19 +241,28 @@ function process_file(filename, ready) {
 
     while(output.length) {
       node = output.shift()
-      act(node, !output.length)
+
+      try {
+        act(node, !output.length)
+      } catch(err) {
+
+      }
     }
 
     ready()
 
     function parse_action(str) {
-      return Function(
+      var fn = Function(
           'print'
         , '_parents'
         , '_pos'
         , '_is'
         , '$FILE'
-        , 'action.called = 0; return action\nfunction action($NODE, $LAST) {\n' +
+        , '$DIR'
+        , 'require'
+        , 'follow'
+        , 'action.called = 0; return action\n' +
+        'function action($NODE, $LAST) {\n' +
         '  var $LINE = _pos($NODE.range[0]).line\n' +
         '  var $COUNT = action.called++\n' +
         '  var $POS = ($COUNT === 0 ? $FILE + "\\n" : "") + $LINE + ": "\n' +
@@ -246,12 +272,29 @@ function process_file(filename, ready) {
         '  is = function(n, s) { return arguments.length === 1 ?\n' +
         '     _is($NODE, n) : _is(n, s)\n' +
         '  }\n' +
-        '  try {;' + action + '; } catch(err) { }' +
+        '  {;' + action + '; }' +
         '}'
-      )(print, parents, idx_to_line_col, is, filename.replace(process.cwd(), './'))
+      )
+
+      return fn(
+          print
+        , parents
+        , idx_to_line_col
+        , is
+        , filename.replace(process.cwd(), './')
+        , path.dirname(filename.replace(process.cwd(), './'))
+        , _require
+        , follow
+      )
 
       function is(node, sel) {
         return language(sel)(node)
+      }
+
+      function _require(what) {
+        return what.indexOf('.') === 0 ?
+          resolve.sync(what, {basedir: process.cwd()}) :
+          require(what)
       }
 
       function print() {
