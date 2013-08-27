@@ -21,6 +21,8 @@ usage: jik [--help] <ast-selector> [<action>] <filename> [<filename>...]
   pos(node)                 - returns an object with {line, col} attributes.
   is([node,] selector)      - returns whether or not the given node (or if
                               not given, $NODE) matches selector.
+  follow(file)              - recurse into file.
+  require(module)           - requires module.
 
   if not specified, the default [4maction[0m is '{print($POS, $NODE)}'.
 
