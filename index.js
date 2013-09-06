@@ -128,6 +128,8 @@ function nom() {
     , current
     , stream
 
+  var user_context = {}
+
   return stream = through(write, end)
 
   function write(info) {
@@ -149,7 +151,7 @@ function nom() {
     }
 
     current = true
-    process_file(pending.shift().path, follow, function() {
+    process_file(pending.shift().path, follow, user_context, function() {
       current = false
       check()
     })
@@ -181,7 +183,7 @@ function nom() {
   }
 }
 
-function process_file(filename, follow, ready) {
+function process_file(filename, follow, user_context, ready) {
   fs.readFile(filename, 'utf8', function(err, data) {
     if(err) {
       throw err
@@ -261,6 +263,7 @@ function process_file(filename, follow, ready) {
         , '$DIR'
         , 'require'
         , 'follow'
+        , '$ctxt'
         , 'action.called = 0; return action\n' +
         'function action($NODE, $LAST) {\n' +
         '  var $LINE = _pos($NODE.range[0]).line\n' +
@@ -285,6 +288,7 @@ function process_file(filename, follow, ready) {
         , path.dirname(filename.replace(process.cwd(), './'))
         , _require
         , follow
+        , user_context
       )
 
       function is(node, sel) {

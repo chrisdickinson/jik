@@ -23,6 +23,8 @@ usage: jik [--help] <ast-selector> [<action>] <filename> [<filename>...]
                               not given, $NODE) matches selector.
   follow(file)              - recurse into file.
   require(module)           - requires module.
+  $ctxt                     - an empty object that persists across different
+                              jik file matches.
 
   if not specified, the default [4maction[0m is '{print($POS, $NODE)}'.
 
