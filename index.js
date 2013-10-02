@@ -293,7 +293,9 @@ function process_file(filename, follow, user_context, ready) {
       )
 
       function inner_follow(what) {
-        follow(resolve.sync(what, {basedir: path.dirname(filename)}))
+        follow(
+            resolve.sync(what, {basedir: path.resolve(path.dirname(filename))})
+        )
       }
 
       function is(node, sel) {
