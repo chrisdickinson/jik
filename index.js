@@ -15,6 +15,7 @@ var next_is_action = optimist.argv._.length > 1 &&
 
 var action = next_is_action ?
     optimist.argv._.shift() : '{print($POS, $NODE)}'
+  , unique = optimist.argv.unique || optimist.argv.u
   , help_text = path.join(__dirname, 'help.txt')
   , filenames = optimist.argv._
   , exitcode = 0
@@ -287,9 +288,13 @@ function process_file(filename, follow, user_context, ready) {
         , filename.replace(process.cwd(), './')
         , path.dirname(filename.replace(process.cwd(), './'))
         , _require
-        , follow
+        , inner_follow
         , user_context
       )
+
+      function inner_follow(what) {
+        follow(resolve.sync(what, {basedir: path.dirname(filename)}))
+      }
 
       function is(node, sel) {
         return language(sel)(node)
@@ -297,7 +302,7 @@ function process_file(filename, follow, user_context, ready) {
 
       function _require(what) {
         return what.indexOf('.') === 0 ?
-          resolve.sync(what, {basedir: process.cwd()}) :
+          require(resolve.sync(what, {basedir: process.cwd()})) :
           require(what)
       }
 
