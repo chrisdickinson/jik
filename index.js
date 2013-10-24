@@ -220,6 +220,7 @@ function process_file(filename, follow, user_context, ready) {
         var is_nope = node.parent &&
                       node.parent.id &&
                       node.parent.id.name === '__NOPE__'
+          , result
 
         if(is_nope) {
           node.parent = null
@@ -229,8 +230,11 @@ function process_file(filename, follow, user_context, ready) {
           return
         }
 
-        if(lang(node)) {
-          output.push(node)
+        result = lang(node)
+
+        if(result) {
+          result = Array.isArray(result) ? result : [result]
+          output = output.concat(result)
         }
       })
     } catch(err) {
