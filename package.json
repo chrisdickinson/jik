@@ -1,6 +1,6 @@
 {
   "name": "jik",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "use css selectors to grep your JS codebase",
   "main": "index.js",
   "scripts": {
